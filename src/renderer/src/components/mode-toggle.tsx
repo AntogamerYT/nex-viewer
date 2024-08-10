@@ -1,6 +1,6 @@
 import { Moon, Sun } from 'lucide-react';
-import { Theme, useTheme } from '@/components/theme-provider';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Theme, useTheme } from '@renderer/components/theme-provider';
+import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group';
 
 export function ModeToggle(): JSX.Element {
 	const { setTheme, theme } = useTheme();

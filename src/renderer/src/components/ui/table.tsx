@@ -1,18 +1,16 @@
 import * as React from 'react';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@renderer/lib/utils';
 
 const Table = React.forwardRef<
 	HTMLTableElement,
 	React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-	<div className="relative w-full overflow-auto">
-		<table
-			ref={ref}
-			className={cn('w-full caption-bottom text-sm', className)}
-			{...props}
-		/>
-	</div>
+	<table
+		ref={ref}
+		className={cn('w-full caption-bottom text-sm', className)}
+		{...props}
+	/>
 ));
 Table.displayName = 'Table';
 
@@ -58,7 +56,12 @@ const TableRow = React.forwardRef<
 	<tr
 		ref={ref}
 		className={cn(
-			'border-b transition-colors hover:bg-zinc-100/50 data-[state=selected]:bg-zinc-100 dark:hover:bg-zinc-800/50 dark:data-[state=selected]:bg-zinc-800',
+			'border-b transition-colors',
+			'hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50',
+			'data-[state=selected]:bg-zinc-100 dark:data-[selected]:bg-zinc-800',
+			'data-[error=true]:bg-red-100/50 dark:data-[error=true]:bg-red-800/50',
+			'hover:data-[error=true]:bg-red-100/80 dark:hover:data-[error=true]:bg-red-800/80',
+			'data-[error=true]:data-[state=selected]:bg-red-100/80 dark:data-[error=true]:data-[state=selected]:bg-red-800/80',
 			className
 		)}
 		{...props}

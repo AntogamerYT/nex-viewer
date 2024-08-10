@@ -1,7 +1,15 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron';
-import { join } from 'path';
+import { app, shell, BrowserWindow, ipcMain, Menu } from 'electron';
+import { join } from 'node:path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
+import { createMenu } from '@/main/menu';
 import icon from '../../resources/icon.png?asset';
+
+global.Object.defineProperty(global.BigInt.prototype, 'toJSON', {
+	value: function() { return this.toString(); },
+	configurable: true,
+	enumerable: false,
+	writable: true
+});
 
 function createWindow(): void {
 	// Create the browser window.
@@ -9,8 +17,7 @@ function createWindow(): void {
 		width: 900,
 		height: 670,
 		show: false,
-		autoHideMenuBar: true,
-		frame: false,
+		autoHideMenuBar: false,
 		...(process.platform === 'linux' ? { icon } : {}),
 		webPreferences: {
 			preload: join(__dirname, '../preload/index.js'),
@@ -43,6 +50,9 @@ app.whenReady().then(() => {
 	// Set app user model id for windows
 	electronApp.setAppUserModelId('com.electron');
 
+	const menu = createMenu(app);
+	Menu.setApplicationMenu(menu);
+
 	// Default open or close DevTools by F12 in development
 	// and ignore CommandOrControl + R in production.
 	// see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
@@ -54,8 +64,8 @@ app.whenReady().then(() => {
 		app.quit();
 	});
 
-	ipcMain.on('minimize', () => {
-		const window = BrowserWindow.getFocusedWindow();
+	ipcMain.on('minimize', (event) => {
+		const window = getWindowForEvent(event);
 		if (!window) {
 			return;
 		}
@@ -63,8 +73,8 @@ app.whenReady().then(() => {
 		window.minimize();
 	});
 
-	ipcMain.on('maximize', () => {
-		const window = BrowserWindow.getFocusedWindow();
+	ipcMain.on('maximize', (event) => {
+		const window = getWindowForEvent(event);
 		if (!window) {
 			return;
 		}
@@ -84,6 +94,11 @@ app.whenReady().then(() => {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();
 	});
 });
+
+function getWindowForEvent(event: Electron.IpcMainEvent): BrowserWindow | null {
+	return BrowserWindow.getAllWindows()
+		.find(window => window.webContents.id === event.sender.id) ?? null;
+}
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
