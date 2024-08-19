@@ -1,20 +1,21 @@
-import { ColumnDef, flexRender, getCoreRowModel, Header, useReactTable, Table as TableDef, getFilteredRowModel, Cell, ColumnFiltersState, Row, RowSelectionState } from '@tanstack/react-table';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@renderer/components/ui/table';
-import { Button } from '@renderer/components/ui/button';
-import { Input } from '@renderer/components/ui/input';
-import { CircleX, Filter, GripVertical, Settings2 } from 'lucide-react';
-import React, { CSSProperties, KeyboardEvent, memo, useMemo, useState } from 'react';
 import SerializedPacket from '@/types/nex/serialized-packet';
-import { CSS } from '@dnd-kit/utilities';
-import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
-import { closestCenter, DndContext, DragEndEvent, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { closestCenter, DndContext, DragEndEvent, KeyboardSensor, MouseSensor, SensorDescriptor, SensorOptions, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@renderer/components/ui/dropdown-menu';
-import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTitle, DialogTrigger } from '@renderer/components/ui/dialog';
+import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { DialogDescription } from '@radix-ui/react-dialog';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@renderer/components/ui/resizable';
-import { ScrollArea, ScrollBar } from '@renderer/components/ui/scroll-area';
 import { PacketInspector } from '@renderer/components/packet-inspector';
+import { Button } from '@renderer/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogTrigger } from '@renderer/components/ui/dialog';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@renderer/components/ui/dropdown-menu';
+import { Input } from '@renderer/components/ui/input';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@renderer/components/ui/resizable';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@renderer/components/ui/table';
+import { Cell, ColumnDef, ColumnFiltersState, flexRender, getCoreRowModel, getFilteredRowModel, Header, Table as TableDef, useReactTable } from '@tanstack/react-table';
+import { CircleX, Filter, Settings2 } from 'lucide-react';
+import { createContext, CSSProperties, forwardRef, HTMLProps, KeyboardEvent, useContext, useMemo, useState } from 'react';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import { FixedSizeList } from 'react-window';
 
 const columns: ColumnDef<SerializedPacket>[] = [
 	{
@@ -76,11 +77,22 @@ interface PacketTableProps {
 	packets: SerializedPacket[];
 }
 
+interface PacketTableContext {
+	handleDragEnd(event: DragEndEvent): void;
+	sensors: SensorDescriptor<SensorOptions>[];
+	columnSizeVars: { [key: string]: number };
+	table: TableDef<SerializedPacket>;
+	columnOrder: string[];
+}
+
+const rowHeight = 39.5;
+
+const PacketTableContext = createContext<PacketTableContext | null>(null);
+
 export function PacketTable({ packets }: PacketTableProps): JSX.Element {
 	const [columnOrder, setColumnOrder] = useState(columns.map(column => column.id!));
 	const [globalFilter, setGlobalFilter] = useState('');
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-	const [isDragging, setIsDragging] = useState(false);
 
 	const table = useReactTable({
 		data: packets,
@@ -117,8 +129,6 @@ export function PacketTable({ packets }: PacketTableProps): JSX.Element {
 		return colSizes;
 	}, [table.getState().columnSizingInfo, table.getState().columnSizing]);
 
-	const width = table.getTotalSize();
-
 	function handleDragEnd(event: DragEndEvent) {
 		const { active, over } = event
 		if (active && over && active.id !== over.id) {
@@ -128,7 +138,6 @@ export function PacketTable({ packets }: PacketTableProps): JSX.Element {
 				return arrayMove(columnOrder, oldIndex, newIndex) 
 			})
 		}
-		setIsDragging(false);
 	}
 
 	const sensors = useSensors(
@@ -137,7 +146,15 @@ export function PacketTable({ packets }: PacketTableProps): JSX.Element {
 		useSensor(KeyboardSensor, {})
 	)
 
-	return (
+	const context: PacketTableContext = {
+		handleDragEnd,
+		sensors,
+		columnSizeVars,
+		table,
+		columnOrder
+	}
+
+	return <PacketTableContext.Provider value={context}>
 		<div className="flex flex-col absolute inset-0">
 			<div className="flex space-x-2 p-2 border-b-[1px] relative">
 				<FilterField onSubmit={setGlobalFilter} onCancel={() => setGlobalFilter('')} initialValue=''/>
@@ -145,89 +162,102 @@ export function PacketTable({ packets }: PacketTableProps): JSX.Element {
 			</div>
 			<ResizablePanelGroup direction="vertical">
 				<ResizablePanel className="overflow-auto">
-					<ScrollArea className="h-full">
-						<DndContext
-							collisionDetection={closestCenter}
-							modifiers={[restrictToHorizontalAxis]}
-							onDragEnd={handleDragEnd}
-							onDragStart={() => setIsDragging(true)}
-							onDragCancel={() => setIsDragging(false)}
-							sensors={sensors}
-						>
-							<Table style={{...columnSizeVars, width}}>
-								<TableHeader>
-									{table.getHeaderGroups().map((headerGroup) => (
-										<TableRow key={headerGroup.id}>
-											<SortableContext
-												items={columnOrder}
-												strategy={horizontalListSortingStrategy}
-											>
-												{headerGroup.headers.map((header) => {
-													return <PacketTableHeader key={header.id} header={header}/>;
-												})}
-											</SortableContext>
-										</TableRow>
-									))}
-								</TableHeader>
-								{table.getState().columnSizingInfo.isResizingColumn || isDragging ? (
-									<MemoizedPacketTableBody table={table} columnOrder={columnOrder}/>
-								) : (
-									<PacketTableBody table={table} columnOrder={columnOrder}/>
-								)}
-							</Table>
-						</DndContext>
-						<ScrollBar />
-						<ScrollBar orientation="horizontal"/>
-					</ScrollArea>
+					<div className="h-full w-full">
+						<AutoSizer>
+							{ ({ height, width }) =>
+								<FixedSizeList
+									height={height}
+									width={width}
+									itemCount={table.getRowModel().rows.length}
+									itemSize={rowHeight}
+									innerElementType={PacketTableContainer}
+								>{ ({ index, style }) => {
+									const row = table.getRowModel().rows[index];
+									const isError = row.original.stack_trace !== undefined
+									return <TableRow
+										key={row.id}
+										data-state={row.getIsSelected() && 'selected'}
+										data-error={isError}
+										onClick={() => row.toggleSelected()}
+										style={{
+											...style,
+											width: table.getTotalSize(),
+											top: `${(style.top as number ?? 0) + rowHeight}px`,
+										}}
+									>
+										<SortableContext
+											items={columnOrder}
+											strategy={horizontalListSortingStrategy}
+										>
+											{row.getVisibleCells().map((cell) => 
+												<PacketTableCell key={cell.id} cell={cell}/>
+											)}
+										</SortableContext>
+									</TableRow>
+								}}</FixedSizeList>
+							}
+						</AutoSizer>
+					</div>
 				</ResizablePanel>
-				<ResizableHandle />
-				<ResizablePanel>
-					<PacketInspector packet={selectedPacket} />
-				</ResizablePanel>
+				{selectedPacket ?
+					<>
+						<ResizableHandle />
+						<ResizablePanel>
+							<PacketInspector packet={selectedPacket} />
+						</ResizablePanel>
+					</>
+					: null
+				}
 			</ResizablePanelGroup>
 		</div>
-	);
+	</PacketTableContext.Provider>
 }
 
-interface PacketTableBodyProps {
-	table: TableDef<SerializedPacket>;
-	columnOrder: string[];
-}
+const PacketTableContainer = forwardRef<HTMLDivElement>(({ children, style, ...rest }: HTMLProps<HTMLDivElement>, ref) => {
+	const {
+		handleDragEnd,
+		sensors,
+		columnSizeVars,
+		columnOrder,
+		table,
+	} = useContext(PacketTableContext)!;
 
-function PacketTableBody({ table, columnOrder }: PacketTableBodyProps): JSX.Element {
-	return <TableBody className="font-mono">
-		{table.getRowModel().rows?.length ? (
-			table.getRowModel().rows.map((row) => {
-				const isError = row.original.stack_trace !== undefined
-				return <TableRow
-					key={row.id}
-					data-state={row.getIsSelected() && 'selected'}
-					data-error={isError}
-					onClick={() => row.toggleSelected()}
-				>
-					<SortableContext
-						items={columnOrder}
-						strategy={horizontalListSortingStrategy}
-					>
-						{row.getVisibleCells().map((cell) => 
-							<PacketTableCell key={cell.id} cell={cell}/>
-						)}
-					</SortableContext>
-				</TableRow>
-		})) : (
-			<TableRow>
-				<TableCell colSpan={table.getVisibleFlatColumns().length} className="h-24 text-center">
-					No results.
-				</TableCell>
-			</TableRow>
-		)}
-	</TableBody>;
-}
-
-const MemoizedPacketTableBody = memo(
-	PacketTableBody,
-	(prev, next) => prev.table.options.data === next.table.options.data
-);
+	return <div
+		style={{
+			...style,
+			height: `${(style?.height as number ?? 0) + rowHeight}px`
+		}}
+	 	ref={ref}
+		{...rest}
+	>
+		<DndContext
+			collisionDetection={closestCenter}
+			modifiers={[restrictToHorizontalAxis]}
+			onDragEnd={handleDragEnd}
+			sensors={sensors}
+		>
+			<Table style={{...columnSizeVars, width: table.getTotalSize() }}>
+				<TableHeader>
+					{table.getHeaderGroups().map((headerGroup) => (
+						<TableRow key={headerGroup.id}>
+							<SortableContext
+								items={columnOrder}
+								strategy={horizontalListSortingStrategy}
+							>
+								{headerGroup.headers.map((header) => {
+									return <PacketTableHeader key={header.id} header={header}/>;
+								})}
+							</SortableContext>
+						</TableRow>
+					))}
+				</TableHeader>
+				<TableBody className="font-mono">
+					{children}
+				</TableBody>
+			</Table>
+		</DndContext>
+	</div>
+});
 
 interface ResizableTableHeaderProps<TD, TV> {
 	header: Header<TD, TV>;
@@ -309,9 +339,7 @@ function PacketTableHeader<TD, TV>({ header }: ResizableTableHeaderProps<TD, TV>
 				</Dialog>
 			}
 			<div className="hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:cursor-col-resize" onMouseDown={header.getResizeHandler()} onTouchStart={header.getResizeHandler()}>
-				<div className="flex items-center h-full">
-					<GripVertical size={16} className="invisible group-hover:visible" />
-				</div>
+				<div className="flex items-center h-full w-1" />
 			</div>
 		</div>
 	</TableHead>;

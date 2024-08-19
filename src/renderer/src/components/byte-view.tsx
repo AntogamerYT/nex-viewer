@@ -93,7 +93,7 @@ export function ByteView({ data, className }: ByteViewProps): JSX.Element {
 					}
 				</AutoSizer>
 			</div>
-			<div className="flex-none text-xs flex">
+			<div className="flex-none text-xs flex whitespace-nowrap">
 				<div className="p-2 border-r-[1px]">Selected offset: 
 					<span className="font-mono">
 						{selectedByte ?
