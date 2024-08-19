@@ -26,7 +26,6 @@ const cellClasses = 'data-[state=selected]:bg-violet-200 data-[state=highlighted
 const ByteViewContext = createContext<ByteViewContext>({ setHighlightedByte(_: number | null): void {} });
 
 export function ByteView({ data, className }: ByteViewProps): JSX.Element {
-	const listRef = useRef<FixedSizeList | null>();
 	const [highlightedByte, setHighlightedByte] = useState<number | null>(null);
 
 	const [selectedByte, setSelectedByte] = useState<number | null>(null);
@@ -39,54 +38,62 @@ export function ByteView({ data, className }: ByteViewProps): JSX.Element {
 	}, [selectedByte, setSelectedByte]);
 
 	return <ByteViewContext.Provider value={{ setHighlightedByte }}>
-		<div className={cn(className, 'flex flex-col')}>
+		<div className={cn(className, 'h-full flex flex-col')}>
 			<div className="grow border-b-[1px]">
 				<AutoSizer disableWidth={true}>
 					{ ({ height }) =>
 						<FixedSizeList
 							height={height}
+							width="100%"
 							itemCount={(data.length / 16) + 1}
 							itemSize={22}
 							innerElementType={ByteTable}
 							outerElementType={ByteTableContainer}
-							ref={el => (listRef.current = el)}
-						> { ({ index, style }) => {
+						>{ ({ index, style }) => {
 							const highlighted = highlightedByte && Math.floor(highlightedByte / 16) === index;
-							return <tr key={index} className={highlighted ? 'bg-zinc-100 dark:bg-zinc-900' : ''} style={style}>
-								<td className="text-zinc-500 select-none">0x{(index * 16).toString(16).padStart(4, '0')}</td>
-								{range(16).map(cellIndex => {
-									const offset = (index * 16) + cellIndex;
-									return <HexCell
-										key={cellIndex}
-										offset={offset}
-										value={data[offset]}
-										cellIndex={cellIndex}
-										highlightedByte={highlightedByte}
-										setHighlightedByte={setHighlightedByte}
-										selectedByte={selectedByte}
-										setSelectedByte={toggleSelectedByte}
-									/>
-								})}
-								{range(16).map(cellIndex => {
-									const offset = (index * 16) + cellIndex;
-									return <AsciiCell
-										key={cellIndex}
-										offset={offset}
-										value={data[offset]}
-										cellIndex={cellIndex}
-										highlightedByte={highlightedByte}
-										setHighlightedByte={setHighlightedByte}
-										selectedByte={selectedByte}
-										setSelectedByte={toggleSelectedByte}
-									/>
-								})}
-							</tr>
-						}}
-						</FixedSizeList>
+							return <tr
+									key={index}
+									className={highlighted ? 'bg-zinc-100 dark:bg-zinc-900' : ''}
+									style={{
+										...style,
+										top: `${(style.top as number ?? 0) + 8}px`,
+										left: '8px',
+										width: 'calc(100% - 8px)'
+									}}
+								>
+									<td className="text-zinc-500 select-none">0x{(index * 16).toString(16).padStart(4, '0')}</td>
+									{range(16).map(cellIndex => {
+										const offset = (index * 16) + cellIndex;
+										return <HexCell
+											key={cellIndex}
+											offset={offset}
+											value={data[offset]}
+											cellIndex={cellIndex}
+											highlightedByte={highlightedByte}
+											setHighlightedByte={setHighlightedByte}
+											selectedByte={selectedByte}
+											setSelectedByte={toggleSelectedByte}
+										/>
+									})}
+									{range(16).map(cellIndex => {
+										const offset = (index * 16) + cellIndex;
+										return <AsciiCell
+											key={cellIndex}
+											offset={offset}
+											value={data[offset]}
+											cellIndex={cellIndex}
+											highlightedByte={highlightedByte}
+											setHighlightedByte={setHighlightedByte}
+											selectedByte={selectedByte}
+											setSelectedByte={toggleSelectedByte}
+										/>
+									})}
+								</tr>
+						}}</FixedSizeList>
 					}
 				</AutoSizer>
 			</div>
-			<div className="flex-none text-sm flex">
+			<div className="flex-none text-xs flex">
 				<div className="p-2 border-r-[1px]">Selected offset: 
 					<span className="font-mono">
 						{selectedByte ?
@@ -114,10 +121,18 @@ const ByteTableContainer = forwardRef<HTMLDivElement>(({ children, ...rest}: HTM
 	</div>
 });
 
-const ByteTable = forwardRef<HTMLDivElement>(({ children, ...rest }: HTMLProps<HTMLDivElement>, ref) => {
+const ByteTable = forwardRef<HTMLDivElement>(({ children, style, ...rest }: HTMLProps<HTMLDivElement>, ref) => {
 	return <ByteViewContext.Consumer>
 		{ ({ setHighlightedByte }) =>
-			<div {...rest} onMouseLeave={() => setHighlightedByte(null)} ref={ref}>
+			<div
+				style={{
+					...style,
+					height: `${(style?.height as number ?? 0) + 8}px`
+				}}
+				onMouseLeave={() => setHighlightedByte(null)}
+				ref={ref}
+				{...rest}
+			>
 				<table className="font-mono text-sm">
 					<tbody>{children}</tbody>
 				</table>
