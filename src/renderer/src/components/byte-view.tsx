@@ -22,7 +22,7 @@ interface ByteViewContext {
 	setHighlightedByte(value: number | null): void;
 }
 
-const cellClasses = 'data-[state=selected]:bg-violet-200 data-[state=highlighted]:bg-zinc-200 dark:data-[state=highlighted]:bg-zinc-800 ';
+const cellClasses = 'data-[state=selected]:bg-violet-200 data-[state=highlighted]:bg-zinc-200 dark:data-[state=selected]:bg-violet-800 dark:data-[state=highlighted]:bg-zinc-800 ';
 const ByteViewContext = createContext<ByteViewContext>({ setHighlightedByte(_: number | null): void {} });
 
 export function ByteView({ data, className }: ByteViewProps): JSX.Element {
