@@ -58,7 +58,7 @@ const TableRow = React.forwardRef<
 		className={cn(
 			'border-b transition-colors',
 			'hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50',
-			'data-[state=selected]:bg-zinc-100 dark:data-[selected]:bg-zinc-800',
+			'data-[state=selected]:bg-zinc-100 dark:data-[state=selected]:bg-zinc-800',
 			'data-[error=true]:bg-red-100/50 dark:data-[error=true]:bg-red-800/50',
 			'hover:data-[error=true]:bg-red-100/80 dark:hover:data-[error=true]:bg-red-800/80',
 			'data-[error=true]:data-[state=selected]:bg-red-100/80 dark:data-[error=true]:data-[state=selected]:bg-red-800/80',
