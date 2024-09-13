@@ -59,7 +59,7 @@ function Node({ node, style }: NodeRendererProps<Tree>): JSX.Element {
 				<ChevronRight className="inline mr-1" size={18} onClick={() => node.toggle()} />
 		}
 		{node.data.name}
-		{node.data.value ? <>: {node.data.value}</> : null}
+		{node.data.value ? <span>: {JSON.stringify(node.data.value)}</span> : null}
 	</div>
 }
 
